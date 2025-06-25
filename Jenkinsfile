@@ -9,9 +9,16 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh '''
+                # Installer les dépendances du projet racine
+                npm ci
+                
+                # Installer les dépendances du backend
                 cd backend
                 npm ci
-                cd ../frontend
+                cd ..
+                
+                # Installer les dépendances du frontend
+                cd frontend
                 npm ci
                 cd ..
                 '''
@@ -20,7 +27,10 @@ pipeline {
         
         stage('Test') {
             steps {
-                sh 'npm test'
+                sh '''
+                # Utiliser npx pour s'assurer que jest est trouvé
+                npx jest
+                '''
             }
         }
         
