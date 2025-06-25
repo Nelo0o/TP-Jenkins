@@ -1,0 +1,13 @@
+{
+  "name": "jenkins-exo",
+  "version": "1.0.0",
+  "description": "Jenkins Exo",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^30.0.3",
+    "supertest": "^7.1.1"
+  }
+}
