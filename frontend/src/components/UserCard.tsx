@@ -1,4 +1,4 @@
-
+import type { User } from '../interfaces/User'
 
 const UserCard = ({ user }: { user: User }) => {
     return (
