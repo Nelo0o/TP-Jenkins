@@ -2,7 +2,7 @@ services:
   nginx:
     image: nginx:stable-alpine
     ports:
-      - "80:80"
+      - "0:80"
     depends_on:
       - frontend
       - backend
