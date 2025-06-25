@@ -26,7 +26,7 @@ services:
   backend:
     build: ./backend
     ports:
-      - "5000:5000"
+      - "0:5000"
     environment:
       - CHOKIDAR_USEPOLLING=true
       - CHOKIDAR_INTERVAL=1000
