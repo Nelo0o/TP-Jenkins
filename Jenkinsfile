@@ -60,8 +60,8 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker build -t ${DOCKER_IMAGE_BACKEND}:${APP_VERSION} ./backend
-                    docker build -t ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION} ./frontend
+                    docker build -t ${DOCKER_IMAGE_BACKEND}:${APP_VERSION} -f ./backend/Dockerfile.prod ./backend
+                    docker build -t ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION} -f ./frontend/Dockerfile.prod ./frontend
                     
                     docker tag ${DOCKER_IMAGE_BACKEND}:${APP_VERSION} ${DOCKER_IMAGE_BACKEND}:latest
                     docker tag ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION} ${DOCKER_IMAGE_FRONTEND}:latest
