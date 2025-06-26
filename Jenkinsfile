@@ -110,6 +110,17 @@ pipeline {
         }
     }
     
+    stage('Création du package de déploiement') {
+            steps {
+                sh """
+                    chmod +x scripts/create_deployment_package.sh
+                    ./scripts/create_deployment_package.sh "${APP_VERSION}" "${DOCKER_IMAGE_BACKEND}" "${DOCKER_IMAGE_FRONTEND}"
+                """
+                
+                archiveArtifacts artifacts: "jenkins-exo-deploy-*.tar.gz", fingerprint: true
+            }
+        }
+        
     post {
         always {
             sh """
