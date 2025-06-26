@@ -1,4 +1,4 @@
-FROM node:16-alpine as build
+FROM node:16-alpine
 
 WORKDIR /app
 
@@ -7,21 +7,9 @@ RUN npm ci --only=production
 
 COPY . .
 
-FROM node:16-alpine
-
-RUN addgroup -S nodeapp && adduser -S nodeapp -G nodeapp
-
-WORKDIR /app
-
-COPY --from=build /app/package*.json ./
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/*.js ./
-COPY --from=build /app/routes ./routes
-COPY --from=build /app/models ./models
-COPY --from=build /app/controllers ./controllers
-COPY --from=build /app/middleware ./middleware
-
-RUN chown -R nodeapp:nodeapp /app
+RUN addgroup -S nodeapp && \
+    adduser -S nodeapp -G nodeapp && \
+    chown -R nodeapp:nodeapp /app
 
 USER nodeapp
 
