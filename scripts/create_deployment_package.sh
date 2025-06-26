@@ -4,9 +4,9 @@ APP_VERSION=$1
 DOCKER_IMAGE_BACKEND=$2
 DOCKER_IMAGE_FRONTEND=$3
 
-mkdir -p deployment
+mkdir -p jenkins-exo-deploy-${APP_VERSION}
 
-cat > deployment/docker-compose.prod.yml << EOF
+cat > jenkins-exo-deploy-${APP_VERSION}/docker-compose.prod.yml << EOF
 services:
   backend:
     image: ${DOCKER_IMAGE_BACKEND}:${APP_VERSION}
@@ -27,9 +27,9 @@ services:
       - backend
 EOF
 
-cp -r nginx deployment/
+cp -r nginx jenkins-exo-deploy-${APP_VERSION}/
 
-cat > deployment/deploy.sh << EOF
+cat > jenkins-exo-deploy-${APP_VERSION}/deploy.sh << EOF
 #!/bin/bash
 docker-compose -f docker-compose.prod.yml pull
 docker-compose -f docker-compose.prod.yml up -d
@@ -37,9 +37,9 @@ docker-compose -f docker-compose.prod.yml up -d
 echo "✅ Application déployée avec succès!"
 EOF
 
-chmod +x deployment/deploy.sh
+chmod +x jenkins-exo-deploy-${APP_VERSION}/deploy.sh
 
-cat > deployment/README.md << EOF
+cat > jenkins-exo-deploy-${APP_VERSION}/README.md << EOF
 # Package de déploiement jenkins-exo v${APP_VERSION}
 
 Ce package contient tout le nécessaire pour déployer l'application jenkins-exo en production.
@@ -63,6 +63,6 @@ Ce package contient tout le nécessaire pour déployer l'application jenkins-exo
 - Date de création: $(date)
 EOF
 
-tar -czf jenkins-exo-deploy-${APP_VERSION}.tar.gz deployment/
+tar -czf jenkins-exo-deploy-${APP_VERSION}.tar.gz jenkins-exo-deploy-${APP_VERSION}/
 
 echo "📦 Package de déploiement créé avec succès: jenkins-exo-deploy-${APP_VERSION}.tar.gz"
