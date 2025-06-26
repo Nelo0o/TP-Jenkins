@@ -108,9 +108,8 @@ pipeline {
                 }
             }
         }
-    }
-    
-    stage('Création du package de déploiement') {
+        
+        stage('Création du package de déploiement') {
             steps {
                 sh """
                     chmod +x scripts/create_deployment_package.sh
@@ -120,7 +119,8 @@ pipeline {
                 archiveArtifacts artifacts: "jenkins-exo-deploy-*.tar.gz", fingerprint: true
             }
         }
-        
+    }
+    
     post {
         always {
             sh """
