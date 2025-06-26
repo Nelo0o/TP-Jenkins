@@ -9,8 +9,9 @@ pipeline {
         APP_VERSION = "1.0.${BUILD_NUMBER}"
         DOCKER_REGISTRY = "ghcr.io"
         GITHUB_USER = credentials('github-user')
-        DOCKER_IMAGE_BACKEND = "${DOCKER_REGISTRY}/${GITHUB_USER}/jenkins-exo-backend"
-        DOCKER_IMAGE_FRONTEND = "${DOCKER_REGISTRY}/${GITHUB_USER}/jenkins-exo-frontend"
+        GITHUB_USER_LOWERCASE = "${GITHUB_USER.toLowerCase()}"
+        DOCKER_IMAGE_BACKEND = "${DOCKER_REGISTRY}/${GITHUB_USER_LOWERCASE}/jenkins-exo-backend"
+        DOCKER_IMAGE_FRONTEND = "${DOCKER_REGISTRY}/${GITHUB_USER_LOWERCASE}/jenkins-exo-frontend"
     }
     
     stages {
