@@ -74,13 +74,16 @@ pipeline {
             steps {
                 script {
                     withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+                        sh '''
+                            set +x
+                            echo $GITHUB_TOKEN | docker login $DOCKER_REGISTRY -u $GITHUB_USER_LOWERCASE --password-stdin
+                            set -x
+                        '''
                         sh """
-                        echo ${GITHUB_TOKEN} | docker login ${DOCKER_REGISTRY} -u ${GITHUB_USER} --password-stdin
-                        
-                        docker push ${DOCKER_IMAGE_BACKEND}:${APP_VERSION}
-                        docker push ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION}
-                        docker push ${DOCKER_IMAGE_BACKEND}:latest
-                        docker push ${DOCKER_IMAGE_FRONTEND}:latest
+                            docker push ${DOCKER_IMAGE_BACKEND}:${APP_VERSION}
+                            docker push ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION}
+                            docker push ${DOCKER_IMAGE_BACKEND}:latest
+                            docker push ${DOCKER_IMAGE_FRONTEND}:latest
                         """
                     }
                 }
@@ -95,7 +98,7 @@ pipeline {
                     git config user.name "Léon"
                     
                     git tag -a v${APP_VERSION} -m "Version ${APP_VERSION} automatiquement taguée par Jenkins"
-                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${GITHUB_USER}/jenkins-exo.git --tags
+                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${GITHUB_USER_LOWERCASE}/jenkins-exo.git --tags
                     """
                 }
             }
