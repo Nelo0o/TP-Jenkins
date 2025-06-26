@@ -92,14 +92,19 @@ pipeline {
         
         stage('Tag du repository') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
-                    sh """
+                sh """
                     git config user.email "leon.gallet@gmail.com"
                     git config user.name "Léon"
                     
                     git tag -a v${APP_VERSION} -m "Version ${APP_VERSION} automatiquement taguée par Jenkins"
-                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${GITHUB_USER_LOWERCASE}/jenkins-exo.git --tags
-                    """
+                """
+                
+                withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                    sh '''
+                        set +x
+                        git push https://$GIT_USERNAME:$GIT_PASSWORD@github.com/$GITHUB_USER_LOWERCASE/jenkins-exo.git --tags
+                        set -x
+                    '''
                 }
             }
         }
