@@ -5,19 +5,30 @@ pipeline {
         nodejs 'NodeJS'
     }
     
+    environment {
+        APP_VERSION = "1.0.${BUILD_NUMBER}"
+        DOCKER_REGISTRY = "ghcr.io"
+        GITHUB_USER = credentials('github-user')
+        DOCKER_IMAGE_BACKEND = "${DOCKER_REGISTRY}/${GITHUB_USER}/jenkins-exo-backend"
+        DOCKER_IMAGE_FRONTEND = "${DOCKER_REGISTRY}/${GITHUB_USER}/jenkins-exo-frontend"
+    }
+    
     stages {
-        stage('Install Dependencies') {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Installation des dépendances') {
             steps {
                 sh '''
-                # Installer les dépendances du projet racine
                 npm ci
                 
-                # Installer les dépendances du backend
                 cd backend
                 npm ci
                 cd ..
                 
-                # Installer les dépendances du frontend
                 cd frontend
                 npm ci
                 cd ..
@@ -25,53 +36,65 @@ pipeline {
             }
         }
         
-        stage('Test') {
+        stage('Exécution des tests') {
             steps {
                 sh '''
-                # Utiliser npx pour s'assurer que jest est trouvé
                 npx jest
                 '''
             }
         }
         
-        stage('Verify Nginx Config') {
+        stage('Build') {
             steps {
                 sh '''
-                cd nginx
-                # Évite que ce soit un dossier (cas où Docker l'aurait transformé en dossier)
-                [ -d default.conf ] && rm -rf default.conf
+                echo "Backend Express: pas de compilation nécessaire"
                 
-                # Vérifie l'existence réelle du fichier
-                if [ ! -f default.conf ]; then
-                  echo "Fichier nginx/default.conf manquant !"
-                  exit 1
-                fi
-                cd ..
+                cd frontend
+                npm run build
                 '''
             }
         }
         
-        stage('Build & Deploy') {
+        stage('Construction des images Docker') {
             steps {
                 script {
-                    def projectName = "jenkins-exo_${BUILD_NUMBER}".toLowerCase().replaceAll('[^a-z0-9]', '-')
-                    
                     sh """
-                    export COMPOSE_PROJECT_NAME=${projectName}
+                    docker build -t ${DOCKER_IMAGE_BACKEND}:${APP_VERSION} ./backend
+                    docker build -t ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION} ./frontend
                     
-                    # Lancer les conteneurs en arrière-plan
-                    docker compose -p ${projectName} up --build -d
+                    docker tag ${DOCKER_IMAGE_BACKEND}:${APP_VERSION} ${DOCKER_IMAGE_BACKEND}:latest
+                    docker tag ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION} ${DOCKER_IMAGE_FRONTEND}:latest
+                    """
+                }
+            }
+        }
+        
+        stage('Publication des images Docker') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+                        sh """
+                        echo ${GITHUB_TOKEN} | docker login ${DOCKER_REGISTRY} -u ${GITHUB_USER} --password-stdin
+                        
+                        docker push ${DOCKER_IMAGE_BACKEND}:${APP_VERSION}
+                        docker push ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION}
+                        docker push ${DOCKER_IMAGE_BACKEND}:latest
+                        docker push ${DOCKER_IMAGE_FRONTEND}:latest
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Tag du repository') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                    sh """
+                    git config user.email "leon.gallet@gmail.com"
+                    git config user.name "Léon"
                     
-                    # Attendre que les conteneurs soient prêts
-                    echo "Attente que les services soient prêts..."
-                    sleep 30
-                    
-                    # Vérifier que tout fonctionne
-                    echo "Vérification des services..."
-                    
-                    # Si le backend est en vie, considérer le test comme réussi
-                    echo "Test terminé, arrêt des conteneurs"
-                    docker compose -p ${projectName} down
+                    git tag -a v${APP_VERSION} -m "Version ${APP_VERSION} automatiquement taguée par Jenkins"
+                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${GITHUB_USER}/jenkins-exo.git --tags
                     """
                 }
             }
@@ -80,11 +103,17 @@ pipeline {
     
     post {
         always {
-            script {
-                def projectName = "jenkins-exo_${BUILD_NUMBER}".toLowerCase().replaceAll('[^a-z0-9]', '-')
-                sh "docker compose -p ${projectName} down -v || true"
-            }
+            sh """
+            docker system prune -f
+            docker logout ${DOCKER_REGISTRY} || true
+            """
             cleanWs()
+        }
+        success {
+            echo "🚀 Pipeline exécuté avec succès! Images publiées: ${DOCKER_IMAGE_BACKEND}:${APP_VERSION} et ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION}"
+        }
+        failure {
+            echo "❌ Échec du pipeline. Vérifiez les logs pour plus de détails."
         }
     }
 }
