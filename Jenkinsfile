@@ -131,7 +131,11 @@ pipeline {
                 
                 sh "cp jenkins-exo-deploy-*.tar.gz deploy-temp/"
                 
-                withEnv(["DEPLOY_USER=${DEPLOY_CREDENTIALS_USR}", "DEPLOY_PASSWORD=${DEPLOY_CREDENTIALS_PSW}"]) {
+                // Récupérer la valeur de DEPLOY_HOST à partir des credentials
+                withCredentials([
+                    string(credentialsId: 'vps-host', variable: 'VPS_HOST')
+                ]) {
+                withEnv(["DEPLOY_USER=${DEPLOY_CREDENTIALS_USR}", "DEPLOY_PASSWORD=${DEPLOY_CREDENTIALS_PSW}", "DEPLOY_HOST=${VPS_HOST}"]) {
                     sh "apt-get update && apt-get install -y sshpass || true"
                     
                     writeFile file: 'deploy-temp/deploy-script.sh', text: """
@@ -156,6 +160,7 @@ pipeline {
                     
                     sh "chmod +x deploy-temp/deploy-script.sh"
                     sh "./deploy-temp/deploy-script.sh"
+                }
                 }
                 
                 echo "🚀 Application déployée avec succès sur https://${DEPLOY_HOST}"
