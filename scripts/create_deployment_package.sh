@@ -48,8 +48,10 @@ mkdir -p jenkins-exo-deploy-${APP_VERSION}/nginx
 # Copier la configuration Nginx spécifique à la production
 cp nginx/default.prod.conf jenkins-exo-deploy-${APP_VERSION}/nginx/default.conf
 
-cat > jenkins-exo-deploy-${APP_VERSION}/deploy.sh << EOF
+cat > jenkins-exo-deploy-${APP_VERSION}/deploy.sh << 'EOF'
 #!/bin/bash
+
+echo "🔍 Démarrage du déploiement de l'application jenkins-exo..."
 
 # Vérifier si Docker est installé
 if ! command -v docker &> /dev/null; then
@@ -63,25 +65,82 @@ if ! command -v docker-compose &> /dev/null; then
     exit 1
 fi
 
+# Afficher la version de Docker et Docker Compose
+echo "ℹ️ Docker version: $(docker --version)"
+echo "ℹ️ Docker Compose version: $(docker-compose --version)"
+
 # Arrêter les conteneurs existants si nécessaire
+echo "🛑 Arrêt des conteneurs existants..."
 docker-compose -f docker-compose.prod.yml down 2>/dev/null
 
 # Télécharger les images les plus récentes
 echo "📥 Téléchargement des images Docker..."
 docker-compose -f docker-compose.prod.yml pull
 
+# Vérifier que les images sont bien téléchargées
+echo "🖼️ Images Docker téléchargées:"
+docker images | grep -E 'frontend|backend|nginx'
+
 # Démarrer les conteneurs
 echo "🚀 Démarrage des services..."
 docker-compose -f docker-compose.prod.yml up -d
 
+# Attendre que les conteneurs soient prêts
+echo "⏳ Attente du démarrage des services..."
+sleep 5
+
 # Vérifier que les conteneurs sont bien démarrés
-if [ \$(docker-compose -f docker-compose.prod.yml ps -q | wc -l) -eq 3 ]; then
+if [ $(docker-compose -f docker-compose.prod.yml ps -q | wc -l) -eq 3 ]; then
     echo "✅ Application déployée avec succès! Accessible sur http://localhost:80"
+    
+    # Afficher les détails des conteneurs
+    echo "📊 Détails des conteneurs:"
+    docker-compose -f docker-compose.prod.yml ps
+    
+    # Vérifier la connectivité réseau entre les conteneurs
+    echo "🔌 Vérification de la connectivité réseau entre les conteneurs..."
+    
+    # Tester la connexion au backend depuis nginx
+    echo "🔄 Test de connexion au backend depuis nginx:"
+    docker-compose -f docker-compose.prod.yml exec nginx wget -q -O - http://backend:5000/ || echo "⚠️ Impossible de se connecter au backend depuis nginx"
+    
+    # Tester la connexion au frontend depuis nginx
+    echo "🔄 Test de connexion au frontend depuis nginx:"
+    docker-compose -f docker-compose.prod.yml exec nginx wget -q -O - http://frontend/ || echo "⚠️ Impossible de se connecter au frontend depuis nginx"
+    
+    # Afficher les logs des conteneurs
     echo "📋 Logs des conteneurs:"
-    docker-compose -f docker-compose.prod.yml logs --tail=10
+    echo "--- NGINX LOGS ---"
+    docker-compose -f docker-compose.prod.yml logs nginx --tail=20
+    echo "--- FRONTEND LOGS ---"
+    docker-compose -f docker-compose.prod.yml logs frontend --tail=20
+    echo "--- BACKEND LOGS ---"
+    docker-compose -f docker-compose.prod.yml logs backend --tail=20
+    
+    echo "✅ Déploiement terminé avec succès. Vous pouvez accéder à l'application sur http://localhost:80"
+    echo "ℹ️ En cas de problème, exécutez: docker-compose -f docker-compose.prod.yml logs"
 else
     echo "❌ Erreur lors du déploiement. Vérifiez les logs:"
+    docker-compose -f docker-compose.prod.yml ps
     docker-compose -f docker-compose.prod.yml logs
+    
+    echo "🔍 Diagnostic des problèmes potentiels:"
+    
+    # Vérifier si les ports sont déjà utilisés
+    if netstat -tuln | grep -q ':80'; then
+        echo "⚠️ Le port 80 est déjà utilisé par un autre processus. Cela peut empêcher nginx de démarrer."
+    fi
+    
+    # Vérifier l'espace disque
+    echo "💾 Espace disque disponible:"
+    df -h
+    
+    # Vérifier la mémoire disponible
+    echo "🧠 Mémoire disponible:"
+    free -h
+    
+    echo "❌ Le déploiement a échoué. Veuillez résoudre les problèmes ci-dessus et réessayer."
+    exit 1
 fi
 EOF
 
