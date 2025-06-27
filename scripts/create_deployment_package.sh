@@ -24,7 +24,7 @@ services:
   nginx:
     image: nginx:stable-alpine
     ports:
-      - "8080:80"
+      - "0:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:

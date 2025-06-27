@@ -19,6 +19,11 @@ app.get('/users-list', (req, res) => {
         name: 'Jane Doe',
         email: 'jane.doe@example.com',
       },
+      {
+        id: 3,
+        name: 'John Daube',
+        email: 'john.daube@example.com',
+      },
     ],
   })
 })
