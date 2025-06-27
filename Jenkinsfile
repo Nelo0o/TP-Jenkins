@@ -7,11 +7,17 @@ pipeline {
     
     environment {
         APP_VERSION = "1.0.${BUILD_NUMBER}"
-        DOCKER_REGISTRY = "ghcr.io"
+        DOCKER_REGISTRY = "docker.io"
+        DOCKER_REGISTRY_CREDENTIALS = "dockerhub-credentials"
         GITHUB_USER = credentials('github-user')
         GITHUB_USER_LOWERCASE = "${GITHUB_USER.toLowerCase()}"
         DOCKER_IMAGE_BACKEND = "${DOCKER_REGISTRY}/${GITHUB_USER_LOWERCASE}/jenkins-exo-backend"
         DOCKER_IMAGE_FRONTEND = "${DOCKER_REGISTRY}/${GITHUB_USER_LOWERCASE}/jenkins-exo-frontend"
+        
+        DEPLOY_CREDENTIALS = credentials('vps-deploy-credentials')
+        DEPLOY_HOST = credentials('vps-host')
+        DEPLOY_DIR = "/opt/jenkins-exo"
+        SSH_CREDENTIALS_ID = "vps-ssh-key"
     }
     
     stages {
@@ -117,6 +123,30 @@ pipeline {
                 """
                 
                 archiveArtifacts artifacts: "jenkins-exo-deploy-*.tar.gz", fingerprint: true
+            }
+        }
+        
+        stage('Déploiement sur environnement de dev') {
+            steps {
+                sh "mkdir -p deploy-temp"
+                
+                sh "cp jenkins-exo-deploy-*.tar.gz deploy-temp/"
+                
+                sshagent([env.SSH_CREDENTIALS_ID]) {
+                    sh """
+                        ssh ${DEPLOY_CREDENTIALS_USR}@${DEPLOY_HOST} 'mkdir -p ${DEPLOY_DIR}'
+                        
+                        scp deploy-temp/jenkins-exo-deploy-*.tar.gz ${DEPLOY_CREDENTIALS_USR}@${DEPLOY_HOST}:${DEPLOY_DIR}/
+                        
+                        ssh ${DEPLOY_CREDENTIALS_USR}@${DEPLOY_HOST} 'cd ${DEPLOY_DIR} && \
+                            tar -xzf jenkins-exo-deploy-*.tar.gz && \
+                            cd jenkins-exo-deploy-* && \
+                            chmod +x deploy.sh && \
+                            ./deploy.sh'
+                    """
+                }
+                
+                echo "🚀 Application déployée avec succès sur https://${DEPLOY_HOST}"
             }
         }
     }
