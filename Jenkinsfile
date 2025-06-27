@@ -1,10 +1,10 @@
 pipeline {
     agent any
-    
+
     tools {
         nodejs 'NodeJS'
     }
-    
+
     environment {
         APP_VERSION = "1.0.${BUILD_NUMBER}"
         DOCKER_REGISTRY = "ghcr.io"
@@ -12,20 +12,15 @@ pipeline {
         GITHUB_USER_LOWERCASE = "${GITHUB_USER.toLowerCase()}"
         DOCKER_IMAGE_BACKEND = "${DOCKER_REGISTRY}/${GITHUB_USER_LOWERCASE}/jenkins-exo-backend"
         DOCKER_IMAGE_FRONTEND = "${DOCKER_REGISTRY}/${GITHUB_USER_LOWERCASE}/jenkins-exo-frontend"
-        
-        DEPLOY_CREDENTIALS = credentials('vps-deploy-credentials')
-        DEPLOY_HOST = credentials('vps-host')
-        DEPLOY_DIR = "/opt/jenkins-exo"
-        SSH_CREDENTIALS_ID = "vps-ssh-key"
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-        
+
         stage('Installation des dépendances') {
             steps {
                 sh '''
@@ -41,7 +36,7 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Exécution des tests') {
             steps {
                 sh '''
@@ -49,7 +44,7 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Build') {
             steps {
                 sh '''
@@ -60,21 +55,18 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Construction des images Docker') {
             steps {
                 script {
                     sh """
                     docker build -t ${DOCKER_IMAGE_BACKEND}:${APP_VERSION} -f ./backend/Dockerfile.prod ./backend
                     docker build -t ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION} -f ./frontend/Dockerfile.prod ./frontend
-                    
-                    docker tag ${DOCKER_IMAGE_BACKEND}:${APP_VERSION} ${DOCKER_IMAGE_BACKEND}:latest
-                    docker tag ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION} ${DOCKER_IMAGE_FRONTEND}:latest
                     """
                 }
             }
         }
-        
+
         stage('Publication des images Docker') {
             steps {
                 script {
@@ -87,14 +79,12 @@ pipeline {
                         sh """
                             docker push ${DOCKER_IMAGE_BACKEND}:${APP_VERSION}
                             docker push ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION}
-                            docker push ${DOCKER_IMAGE_BACKEND}:latest
-                            docker push ${DOCKER_IMAGE_FRONTEND}:latest
                         """
                     }
                 }
             }
         }
-        
+
         stage('Tag du repository') {
             steps {
                 sh """
@@ -113,7 +103,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Création du package de déploiement') {
             steps {
                 sh """
@@ -124,50 +114,8 @@ pipeline {
                 archiveArtifacts artifacts: "jenkins-exo-deploy-*.tar.gz", fingerprint: true
             }
         }
-        
-        stage('Déploiement sur environnement de dev') {
-            steps {
-                sh "mkdir -p deploy-temp"
-                
-                sh "cp jenkins-exo-deploy-*.tar.gz deploy-temp/"
-                
-                // Récupérer la valeur de DEPLOY_HOST à partir des credentials
-                withCredentials([
-                    string(credentialsId: 'vps-host', variable: 'VPS_HOST')
-                ]) {
-                withEnv(["DEPLOY_USER=${DEPLOY_CREDENTIALS_USR}", "DEPLOY_PASSWORD=${DEPLOY_CREDENTIALS_PSW}", "DEPLOY_HOST=${VPS_HOST}"]) {
-                    sh "apt-get update && apt-get install -y sshpass || true"
-                    
-                    writeFile file: 'deploy-temp/deploy-script.sh', text: """
-                        #!/bin/bash
-                        set -e
-                        
-                        export SSHPASS=\"${DEPLOY_PASSWORD}\"
-                        
-                        echo "🔄 Création du répertoire de déploiement sur le VPS..."
-                        sshpass -e ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} "mkdir -p ${DEPLOY_DIR}"
-                        
-                        echo "📦 Copie du package de déploiement vers le VPS..."
-                        sshpass -e scp -o StrictHostKeyChecking=no deploy-temp/jenkins-exo-deploy-*.tar.gz ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/
-                        
-                        echo "🚀 Exécution du script de déploiement sur le VPS..."
-                        sshpass -e ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} "cd ${DEPLOY_DIR} && \
-                            tar -xzf jenkins-exo-deploy-*.tar.gz && \
-                            cd jenkins-exo-deploy-* && \
-                            chmod +x deploy.sh && \
-                            ./deploy.sh"
-                    """
-                    
-                    sh "chmod +x deploy-temp/deploy-script.sh"
-                    sh "./deploy-temp/deploy-script.sh"
-                }
-                }
-                
-                echo "🚀 Application déployée avec succès sur https://${DEPLOY_HOST}"
-            }
-        }
     }
-    
+
     post {
         always {
             sh """
@@ -177,10 +125,10 @@ pipeline {
             cleanWs()
         }
         success {
-            echo "🚀 Pipeline exécuté avec succès! Images publiées: ${DOCKER_IMAGE_BACKEND}:${APP_VERSION} et ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION}"
+            echo " Pipeline terminé. Images publiées: ${DOCKER_IMAGE_BACKEND}:${APP_VERSION} et ${DOCKER_IMAGE_FRONTEND}:${APP_VERSION}"
         }
         failure {
-            echo "❌ Échec du pipeline. Vérifiez les logs pour plus de détails."
+            echo " Échec du pipeline."
         }
     }
 }
