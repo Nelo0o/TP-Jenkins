@@ -131,30 +131,29 @@ pipeline {
                 
                 sh "cp jenkins-exo-deploy-*.tar.gz deploy-temp/"
                 
-                // Utilisation de SSH sans sshagent pour éviter les problèmes de compatibilité
-                withCredentials([
-                    usernamePassword(credentialsId: 'vps-credentials', usernameVariable: 'DEPLOY_USER', passwordVariable: 'DEPLOY_PASSWORD')
-                ]) {
-                    // Création d'un script temporaire pour le déploiement
+                withEnv(["DEPLOY_USER=${DEPLOY_CREDENTIALS_USR}", "DEPLOY_PASSWORD=${DEPLOY_CREDENTIALS_PSW}"]) {
+                    sh "apt-get update && apt-get install -y sshpass || true"
+                    
                     writeFile file: 'deploy-temp/deploy-script.sh', text: """
                         #!/bin/bash
                         set -e
                         
-                        # Créer le répertoire de déploiement si nécessaire
-                        ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} "mkdir -p ${DEPLOY_DIR}"
+                        export SSHPASS=\"${DEPLOY_PASSWORD}\"
                         
-                        # Copier le package de déploiement
-                        scp -o StrictHostKeyChecking=no deploy-temp/jenkins-exo-deploy-*.tar.gz ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/
+                        echo "🔄 Création du répertoire de déploiement sur le VPS..."
+                        sshpass -e ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} "mkdir -p ${DEPLOY_DIR}"
                         
-                        # Exécuter le déploiement sur le serveur
-                        ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} "cd ${DEPLOY_DIR} && \
+                        echo "📦 Copie du package de déploiement vers le VPS..."
+                        sshpass -e scp -o StrictHostKeyChecking=no deploy-temp/jenkins-exo-deploy-*.tar.gz ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/
+                        
+                        echo "🚀 Exécution du script de déploiement sur le VPS..."
+                        sshpass -e ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} "cd ${DEPLOY_DIR} && \
                             tar -xzf jenkins-exo-deploy-*.tar.gz && \
                             cd jenkins-exo-deploy-* && \
                             chmod +x deploy.sh && \
                             ./deploy.sh"
                     """
                     
-                    // Rendre le script exécutable et l'exécuter
                     sh "chmod +x deploy-temp/deploy-script.sh"
                     sh "./deploy-temp/deploy-script.sh"
                 }
