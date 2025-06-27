@@ -7,8 +7,7 @@ pipeline {
     
     environment {
         APP_VERSION = "1.0.${BUILD_NUMBER}"
-        DOCKER_REGISTRY = "docker.io"
-        DOCKER_REGISTRY_CREDENTIALS = "dockerhub-credentials"
+        DOCKER_REGISTRY = "ghcr.io"
         GITHUB_USER = credentials('github-user')
         GITHUB_USER_LOWERCASE = "${GITHUB_USER.toLowerCase()}"
         DOCKER_IMAGE_BACKEND = "${DOCKER_REGISTRY}/${GITHUB_USER_LOWERCASE}/jenkins-exo-backend"
